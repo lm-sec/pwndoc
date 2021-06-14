@@ -1,0 +1,44 @@
+<div>
+    <breadcrumb buttons :title="`${$parent.audit.name} (${$parent.audit.auditType || 'Audit Type not set'})`" id="edit-breadcrumb-affix" :approved="fullyApproved">
+    </breadcrumb>
+
+    <div class="row q-col-gutter-md q-pa-md">
+        <div class="col-md-8 offset-md-2 col-12">
+            <div v-for="post of this.feed" :key="post._id">
+                <q-card>
+                    <q-item>
+                        <q-item-section avatar>
+                            <q-icon v-if="post.type == 'message'" color="secondary" name="fa fa-user"></q-icon>
+                        </q-item-section>
+    
+                        <q-item-section>
+                            <q-item-label>{{ post.user }}</q-item-label>
+                            <q-item-label caption>{{ new Date(post.createdAt) }}</q-item-label>
+                        </q-item-section>
+                    </q-item>
+
+                    <q-separator/>
+
+                    <q-card-section>
+                        <basic-editor ref="basiceditor_post" readOnly v-model="post.content"/>
+                    </q-card-section>
+                </q-card>
+                <br/>
+            </div>
+            
+            <q-card>
+                <q-card-section>
+                    <basic-editor ref="basiceditor_content" noSync v-model="post.content"/>
+                </q-card-section>
+
+                <q-separator/>
+
+                <q-card-section>
+                    <div class="row justify-end">
+                        <q-btn color="secondary" label="Post" @click="sendPost()"/>
+                    </div>
+                </q-card-section>
+            </q-card>
+        </div>
+    </div>
+</div>

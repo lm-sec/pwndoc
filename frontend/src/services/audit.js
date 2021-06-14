@@ -37,6 +37,14 @@ export default {
     return Vue.prototype.$axios.put(`audits/${auditId}/network`, audit)
   },
 
+  getAuditFeed: function(auditId) {
+    return Vue.prototype.$axios.get(`audits/${auditId}/feed`)
+  },
+
+  postAuditFeed: function(auditId, post) {
+    return Vue.prototype.$axios.post(`audits/${auditId}/feed`, post)
+  },
+
   createFinding: function(auditId, finding) {
     return Vue.prototype.$axios.post(`audits/${auditId}/findings`, finding)
   },
