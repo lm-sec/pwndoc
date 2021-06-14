@@ -49,6 +49,14 @@ var Host = {
     services:   [Service]
 }
 
+var Post = {
+    type:       {type: String, enum: ['message']},
+    user:       {type: Schema.Types.ObjectId, ref: 'User'},
+    content:    Schema.Types.Mixed,
+    createdAt:  Schema.Types.Date,
+    updatedAt:  Schema.Types.Date
+};
+
 var AuditSchema = new Schema({
     name:               {type: String, required: true},
     auditType:          String,
@@ -70,6 +78,7 @@ var AuditSchema = new Schema({
     customFields:       [customField],
     isReadyForReview:   Boolean,
     approvals:          [{type: Schema.Types.ObjectId, ref: 'User'}],
+    feed:               [Post],
 }, {timestamps: true});
 
 /*
@@ -597,6 +606,43 @@ AuditSchema.statics.updateApprovals = (isAdmin, auditId, userId, update) => {
         query.nor([{creator: userId}, {collaborators: userId}]);
         if (!isAdmin)
             query.or([{reviewers: userId}]);
+        
+        query.exec()
+        .then(row => {
+            if (!row)
+                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
+            
+            resolve("Audit approvals updated successfully");
+        })
+        .catch((err) => {
+            reject(err)
+        })
+    });
+}
+
+AuditSchema.statics.getFeed = (isAdmin, auditId, userId) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findById(auditId);
+        
+        query.exec()
+        .then(row => {
+            if (!row)
+                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
+
+            if(!row.feed) 
+                resolve([]);
+
+            resolve(row.feed);
+        })
+        .catch((err) => {
+            reject(err)
+        })
+    });
+}
+
+AuditSchema.statics.updateFeed = (isAdmin, auditId, userId, update) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findByIdAndUpdate(auditId, update);
         
         query.exec()
         .then(row => {

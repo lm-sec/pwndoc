@@ -415,4 +415,37 @@ module.exports = function(app, io) {
             Response.Internal(res, err);
         })
     });
+
+    app.get("/api/audits/:auditId/feed", acl.hasPermission('audits:review'), function(req, res) { 
+        Audit.getFeed(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id)
+        .then(msg => Response.Ok(res, msg))
+        .catch(err => Response.Internal(res, err))
+    });
+
+    app.post("/api/audits/:auditId/feed", acl.hasPermission('audits:review'), function(req, res) {
+        Audit.findById(req.params.auditId)
+        .then((audit) => {
+            let post = {
+                type: req.body.type,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                user: req.decodedToken.id,
+                content: req.body.content
+            };
+
+            let update = { feed: [...(audit.feed || []), post] };
+
+            Audit.updateFeed(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, update)
+            .then(() => {
+                io.to(req.params.auditId).emit('updateAudit');
+                Response.Ok(res, post)
+            })
+            .catch((err) => {
+                Response.Internal(res, err);
+            })
+        })
+        .catch((err) => {
+            Response.Internal(res, err);
+        })
+    });
 }
