@@ -416,13 +416,13 @@ module.exports = function(app, io) {
         })
     });
 
-    app.get("/api/audits/:auditId/feed", acl.hasPermission('audits:review'), function(req, res) { 
-        Audit.getFeed(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id)
+    app.get("/api/audits/:auditId/conversation", acl.hasPermission('audits:review'), function(req, res) { 
+        Audit.getConversation(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id)
         .then(msg => Response.Ok(res, msg))
         .catch(err => Response.Internal(res, err))
     });
 
-    app.post("/api/audits/:auditId/feed", acl.hasPermission('audits:review'), function(req, res) {
+    app.post("/api/audits/:auditId/conversation", acl.hasPermission('audits:review'), function(req, res) {
         Audit.findById(req.params.auditId)
         .then((audit) => {
             let post = {
@@ -433,9 +433,9 @@ module.exports = function(app, io) {
                 content: req.body.content
             };
 
-            let update = { feed: [...(audit.feed || []), post] };
+            let update = { conversation: [...(audit.conversation || []), post] };
 
-            Audit.updateFeed(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, update)
+            Audit.updateConversation(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, update)
             .then(() => {
                 io.to(req.params.auditId).emit('updateAudit');
                 Response.Ok(res, post)

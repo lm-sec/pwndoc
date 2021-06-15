@@ -37,12 +37,12 @@ export default {
     return Vue.prototype.$axios.put(`audits/${auditId}/network`, audit)
   },
 
-  getAuditFeed: function(auditId) {
-    return Vue.prototype.$axios.get(`audits/${auditId}/feed`)
+  getAuditConversation: function(auditId) {
+    return Vue.prototype.$axios.get(`audits/${auditId}/conversation`)
   },
 
-  postAuditFeed: function(auditId, post) {
-    return Vue.prototype.$axios.post(`audits/${auditId}/feed`, post)
+  postAuditConversation: function(auditId, post) {
+    return Vue.prototype.$axios.post(`audits/${auditId}/conversation`, post)
   },
 
   createFinding: function(auditId, finding) {

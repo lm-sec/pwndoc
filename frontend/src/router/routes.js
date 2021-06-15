@@ -9,7 +9,7 @@ export default [
         {path: '', redirect: 'general'},
         {path: 'general', component: () => import('pages/audits/edit/general')},
         {path: 'network', component: () => import('pages/audits/edit/network')},
-        {path: 'feed', component: () => import('pages/audits/edit/feed')},
+        {path: 'conversation', component: () => import('pages/audits/edit/conversation')},
         {path: 'findings/add', component: () => import('pages/audits/edit/findings/add')},
         {path: 'findings/:findingId', component: () => import('pages/audits/edit/findings/edit')},
         {path: 'sections/:sectionId', component: () => import('pages/audits/edit/sections')}

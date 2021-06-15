@@ -39,17 +39,17 @@
 					</div>
 
 					<q-item
-						v-if="!currentAuditType || !currentAuditType.hidden.includes('feed')"
-						:to="'/audits/'+auditId+'/feed'"
+						v-if="!currentAuditType || !currentAuditType.hidden.includes('conversation')"
+						:to="'/audits/'+auditId+'/conversation'"
 					>
 						<q-item-section avatar>
 							<q-icon name="fa fa-comments"></q-icon>
 						</q-item-section>
-						<q-item-section>Feed ({{audit.feed ? audit.feed.length : 0}})</q-item-section>
+						<q-item-section>Conversation ({{audit.conversation ? audit.conversation.length : 0}})</q-item-section>
 					</q-item>
 
 					<div class="row">
-						<div v-for="(user,idx) in feedUsers" :key="idx" class="col multi-colors-bar" :style="{background:user.color}" />
+						<div v-for="(user,idx) in conversationUsers" :key="idx" class="col multi-colors-bar" :style="{background:user.color}" />
 					</div>
 
 					<div v-if="!currentAuditType || !currentAuditType.hidden.includes('findings')">
@@ -194,7 +194,7 @@ export default {
 		computed: {
 			generalUsers: function() {return this.users.filter(user => user.menu === 'general')},
 			networkUsers: function() {return this.users.filter(user => user.menu === 'network')},
-			feedUsers: function() {return this.users.filter(user => user.menu === 'feed')},
+			conversationUsers: function() {return this.users.filter(user => user.menu === 'conversation')},
 			findingUsers: function() {return this.users.filter(user => user.menu === 'editFinding')},
 			sectionUsers: function() {return this.users.filter(user => user.menu === 'editSection')},
 

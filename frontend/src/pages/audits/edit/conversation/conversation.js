@@ -19,8 +19,8 @@ export default {
             // Set audit ID
             auditId: null,
             // Current editing audit object
-            feed: [],
-            feedOrig: [],
+            conversation: [],
+            conversationOrig: [],
             post: {
                 type: "message",
                 content: ""
@@ -35,9 +35,9 @@ export default {
 
     mounted: function() {
         this.auditId = this.$route.params.auditId;
-        this.getAuditFeed();
+        this.getAuditConversation();
 
-        this.$socket.emit('menu', {menu: 'feed', room: this.auditId});
+        this.$socket.emit('menu', {menu: 'conversation', room: this.auditId});
     },
 
     destroyed: function() {
@@ -53,11 +53,11 @@ export default {
         },
 
         // Get Audit datas from uuid
-        getAuditFeed: function() {
-            AuditService.getAuditFeed(this.auditId)
+        getAuditConversation: function() {
+            AuditService.getAuditConversation(this.auditId)
             .then((data) => {
-                this.feed = data.data.datas;
-                this.feedOrig = this.$_.cloneDeep(this.audit);
+                this.conversation = data.data.datas;
+                this.conversationOrig = this.$_.cloneDeep(this.audit);
             })
             .catch((err) => {
                 console.log(err)
@@ -68,9 +68,9 @@ export default {
             Utils.syncEditors(this.$refs);
 
             this.$nextTick(() => {
-                AuditService.postAuditFeed(this.auditId, this.post)
+                AuditService.postAuditConversation(this.auditId, this.post)
                 .then(res => {
-                    this.feed = [...this.feed, res.data.datas];
+                    this.conversation = [...this.conversation, res.data.datas];
                     this.post.content = "";
 
                     Utils.syncEditors(this.$refs);
