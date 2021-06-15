@@ -3,6 +3,7 @@ import { Notify, Dialog } from 'quasar';
 import Breadcrumb from 'components/breadcrumb';
 import BasicEditor from 'components/editor';
 
+import UserService from '@/services/user';
 import AuditService from '@/services/audit';
 import Utils from '@/services/utils';
 
@@ -18,13 +19,14 @@ export default {
         return {
             // Set audit ID
             auditId: null,
-            // Current editing audit object
             conversation: [],
             conversationOrig: [],
             post: {
                 type: "message",
                 content: ""
-            }
+            },
+            deleteDialog: false,
+            deletePostId: null
         }
     },
 
@@ -52,11 +54,23 @@ export default {
             }
         },
 
+        // Includes frontend data to post.
+        convertPost: function(post) {
+            return { 
+                ...post, 
+                user: {
+                    ...post.user, 
+                    me: post.user._id === UserService.user.id
+                }, 
+                edit: false 
+            };
+        },
+
         // Get Audit datas from uuid
         getAuditConversation: function() {
             AuditService.getAuditConversation(this.auditId)
             .then((data) => {
-                this.conversation = data.data.datas;
+                this.conversation = data.data.datas.map(post => this.convertPost(post));
                 this.conversationOrig = this.$_.cloneDeep(this.audit);
             })
             .catch((err) => {
@@ -74,7 +88,7 @@ export default {
 
                 AuditService.postAuditConversation(this.auditId, this.post)
                 .then(res => {
-                    this.conversation = [...this.conversation, res.data.datas];
+                    this.conversation = [...this.conversation, this.convertPost(res.data.datas)];
                     this.post.content = "";
 
                     this.$nextTick(() => {
@@ -84,6 +98,64 @@ export default {
                     console.log(err);
                 })
             });
+        },
+
+        // Toggles post edit state.
+        editAuditConversationPost: function(post) {
+            post.edit = !post.edit;
+
+            if(!post.edit) {
+                Utils.syncEditors(this.$refs);
+
+                this.$nextTick(() => {
+                    AuditService.updateAuditConversation(this.auditId, post._id, post)
+                    .then((data) => {
+                        Notify.create({
+                            message: 'Post updated successfully',
+                            color: 'positive',
+                            textColor:'white',
+                            position: 'top-right'
+                        })
+                    })
+                    .catch((err) => {
+                        Notify.create({
+                            message: "Post update failed",
+                            color: 'negative',
+                            textColor: 'white',
+                            position: 'top-right'
+                        });
+                    })
+                });
+            }
+        },
+
+        // Opens delete dialog box.
+        deleteAuditConversationPostDialog: function(post) {
+            this.deleteDialog = true;
+            this.deletePostId = post._id;
+        },
+
+        // Deletes post from conversation.
+        deleteAuditConversationPost: function() {
+            AuditService.deleteAuditConversation(this.auditId, this.deletePostId)
+            .then((data) => {
+                this.conversation = this.conversation.filter(post => post._id !== this.deletePostId);
+
+                Notify.create({
+                    message: 'Post deleted successfully',
+                    color: 'positive',
+                    textColor:'white',
+                    position: 'top-right'
+                })
+            })
+            .catch((err) => {
+                Notify.create({
+                    message: "Post delete failed",
+                    color: 'negative',
+                    textColor: 'white',
+                    position: 'top-right'
+                });
+            })
         }
     }
 }

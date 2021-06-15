@@ -290,6 +290,14 @@ export default {
         });
     },
 
+    updated() {
+        this.$nextTick(() => {
+            this.editor.setOptions({
+                editable: !this.readOnly && this.editable,
+            });
+        });
+    },
+
     beforeDestroy() {
         this.editor.destroy()
     },

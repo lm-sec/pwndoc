@@ -45,6 +45,14 @@ export default {
     return Vue.prototype.$axios.post(`audits/${auditId}/conversation`, post)
   },
 
+  updateAuditConversation: function(auditId, postId, post) {
+    return Vue.prototype.$axios.put(`audits/${auditId}/conversation/${postId}`, post)
+  },
+
+  deleteAuditConversation: function(auditId, postId) {
+    return Vue.prototype.$axios.delete(`audits/${auditId}/conversation/${postId}`)
+  },
+
   createFinding: function(auditId, finding) {
     return Vue.prototype.$axios.post(`audits/${auditId}/findings`, finding)
   },

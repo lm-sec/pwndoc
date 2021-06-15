@@ -2,6 +2,27 @@
     <breadcrumb buttons :title="`${$parent.audit.name} (${$parent.audit.auditType || 'Audit Type not set'})`" id="edit-breadcrumb-affix" :approved="fullyApproved">
     </breadcrumb>
 
+    <q-dialog v-model="deleteDialog" persistent>
+        <q-card>
+            <q-card-section>
+                <div class="text-h6">Delete Post</div>
+            </q-card-section>
+
+            <q-separator />
+
+            <q-card-section>
+                You are about to delete a post. Are you sure you want to delete? This action is irreversible.
+            </q-card-section>
+
+            <q-separator />
+
+            <q-card-actions align="right">
+                <q-btn flat label="No" color="primary" v-close-popup />
+                <q-btn @click="deleteAuditConversationPost()" label="Yes" color="secondary" v-close-popup />
+            </q-card-actions>
+        </q-card>
+    </q-dialog>
+
     <div class="row q-col-gutter-md q-pa-md">
         <div class="col-md-8 offset-md-2 col-12">
             <div v-for="post of this.conversation" :key="post._id">
@@ -15,12 +36,32 @@
                             <q-item-label>{{ post.user.username }}</q-item-label>
                             <q-item-label caption>{{ new Date(post.createdAt) }}</q-item-label>
                         </q-item-section>
+
+                        <q-item-section v-if="post.user.me">
+                            <div class="row justify-end">
+                                <q-btn-dropdown flat round>
+                                    <q-item v-if="!post.edit" clickable v-close-popup @click="editAuditConversationPost(post)">
+                                        <q-item-section side><q-icon size="xs" name="fa fa-edit" /></q-item-section>
+                                        <q-item-section>Edit</q-item-section>
+                                    </q-item>
+                                    <q-item v-else clickable v-close-popup @click="editAuditConversationPost(post)">
+                                        <q-item-section side><q-icon size="xs" name="fa fa-save" /></q-item-section>
+                                        <q-item-section>Save</q-item-section>
+                                    </q-item>
+                                    <q-separator />
+                                    <q-item clickable v-close-popup @click="deleteAuditConversationPostDialog(post)">
+                                        <q-item-section side><q-icon size="xs" name="fa fa-trash" /></q-item-section>
+                                        <q-item-section>Delete</q-item-section>
+                                    </q-item>
+                                </q-btn-dropdown>
+                            </div>
+                        </q-item-section>
                     </q-item>
 
                     <q-separator/>
 
                     <q-card-section>
-                        <basic-editor ref="basiceditor_post" readOnly v-model="post.content"/>
+                        <basic-editor ref="basiceditor_post" noSync noAffix :readOnly="!post.edit" v-model="post.content"/>
                     </q-card-section>
                 </q-card>
                 <br/>
