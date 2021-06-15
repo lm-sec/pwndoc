@@ -49,13 +49,13 @@ var Host = {
     services:   [Service]
 }
 
-var Post = {
+var Post = new Schema({
     type:       {type: String, enum: ['message']},
     user:       {type: Schema.Types.ObjectId, ref: 'User'},
     content:    Schema.Types.Mixed,
     createdAt:  Schema.Types.Date,
     updatedAt:  Schema.Types.Date
-};
+}, {timestamps: true});
 
 var AuditSchema = new Schema({
     name:               {type: String, required: true},
@@ -629,13 +629,38 @@ AuditSchema.statics.getConversation = (isAdmin, auditId, userId) => {
         
         query.exec()
         .then(row => {
-            if (!row)
-                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
-
-            if(!row.conversation) 
-                resolve([]);
+            if (!row) throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
+            if(!row.conversation) resolve([]);
 
             resolve(row.conversation);
+        })
+        .catch(err => reject(err))
+    });
+}
+
+AuditSchema.statics.pushConversationPost = (isAdmin, auditId, userId, post) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findByIdAndUpdate(auditId, 
+            {
+                "$push": {
+                    "conversation": { 
+                        ...post,
+                        user: userId
+                    }
+                }
+            },
+            { new: true }
+        ).populate({
+            path: 'conversation.user', 
+            select: 'username'
+        });
+        
+        query.exec()
+        .then(row => {
+            if (!row)
+                throw({fn: 'NotFound', message: 'Audit conversation not found or Insufficient Privileges'});
+            
+            resolve(row.conversation[row.conversation.length - 1]);
         })
         .catch((err) => {
             reject(err)
@@ -643,20 +668,62 @@ AuditSchema.statics.getConversation = (isAdmin, auditId, userId) => {
     });
 }
 
-AuditSchema.statics.updateConversation = (isAdmin, auditId, userId, update) => {
+AuditSchema.statics.updateConversationPost = (isAdmin, auditId, userId, postId, newPost) => {
     return new Promise((resolve, reject) => {
-        var query = Audit.findByIdAndUpdate(auditId, update);
+        var query = Audit.findOneAndUpdate(
+            { 
+                _id: auditId,
+                "conversation._id": postId,
+                "conversation.user": userId
+            }, 
+            {
+                "$set": {
+                    "conversation.$[element].content": newPost.content
+                }
+            },
+            {
+                arrayFilters: [{ 
+                    "element._id": postId
+                }],
+                new: true 
+            }
+        );
         
         query.exec()
         .then(row => {
-            if (!row)
-                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
-            
-            resolve("Audit approvals updated successfully");
+            if (!row) throw({fn: 'NotFound', message: 'Audit post not found or Insufficient Privileges'});
+
+            console.log(row);
+
+            resolve("Updated post successfully.");
         })
-        .catch((err) => {
-            reject(err)
+        .catch(err => reject(err))
+    });
+}
+
+AuditSchema.statics.deleteConversationPost = (isAdmin, auditId, userId, postId) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findOneAndUpdate(
+            { 
+                _id: auditId, 
+            },
+            {
+                "$pull": {
+                    "conversation": {
+                        "_id": postId,
+                        "user": userId
+                    }
+                }
+            }
+        );
+        
+        query.exec()
+        .then(row => {
+            if (!row) throw({fn: 'NotFound', message: 'Audit post not found or Insufficient Privileges'});
+
+            resolve("Deleted post successfully.");
         })
+        .catch(err => reject(err))
     });
 }
 

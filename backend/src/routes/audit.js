@@ -423,32 +423,29 @@ module.exports = function(app, io) {
     });
 
     app.post("/api/audits/:auditId/conversation", acl.hasPermission('audits:review'), function(req, res) {
-        Audit.findById(req.params.auditId)
-        .then((audit) => {
-            let post = {
-                type: req.body.type,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                user: {
-                    _id: req.decodedToken.id,
-                    username: req.decodedToken.username
-                },
-                content: req.body.content
-            };
-
-            let update = { conversation: [...(audit.conversation || []), post] };
-
-            Audit.updateConversation(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, update)
-            .then(() => {
-                io.to(req.params.auditId).emit('updateAudit');
-                Response.Ok(res, post)
-            })
-            .catch((err) => {
-                Response.Internal(res, err);
-            })
+        Audit.pushConversationPost(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, req.body)
+        .then(msg => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, msg);
         })
-        .catch((err) => {
-            Response.Internal(res, err);
+        .catch(err => Response.Internal(res, err));
+    });
+
+    app.put("/api/audits/:auditId/conversation/:postId", acl.hasPermission('audits:review'), function(req, res) {   
+        Audit.updateConversationPost(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, req.params.postId, req.body)
+        .then(msg => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, msg);
         })
+        .catch(err => Response.Internal(res, err));
+    });
+
+    app.delete("/api/audits/:auditId/conversation/:postId", acl.hasPermission('audits:review'), function(req, res) {   
+        Audit.deleteConversationPost(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, req.params.postId)
+        .then(msg => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, msg);
+        })
+        .catch(err => Response.Internal(res, err));
     });
 }
