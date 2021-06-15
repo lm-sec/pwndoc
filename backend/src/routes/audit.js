@@ -429,7 +429,10 @@ module.exports = function(app, io) {
                 type: req.body.type,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
-                user: req.decodedToken.id,
+                user: {
+                    _id: req.decodedToken.id,
+                    username: req.decodedToken.username
+                },
                 content: req.body.content
             };
 
