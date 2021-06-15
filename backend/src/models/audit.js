@@ -622,7 +622,10 @@ AuditSchema.statics.updateApprovals = (isAdmin, auditId, userId, update) => {
 
 AuditSchema.statics.getFeed = (isAdmin, auditId, userId) => {
     return new Promise((resolve, reject) => {
-        var query = Audit.findById(auditId);
+        var query = Audit.findById(auditId).populate({
+            path: 'feed.user', 
+            select: 'username'
+        });
         
         query.exec()
         .then(row => {
