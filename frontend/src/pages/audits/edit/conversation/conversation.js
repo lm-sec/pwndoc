@@ -54,7 +54,7 @@ export default {
 
         // Get Audit datas from uuid
         getAuditFeed: function() {
-            AuditService.getAuditFeed(this.auditId)
+            AuditService.getAuditConversation(this.auditId)
             .then((data) => {
                 this.feed = data.data.datas;
                 this.feedOrig = this.$_.cloneDeep(this.audit);
@@ -68,7 +68,7 @@ export default {
             Utils.syncEditors(this.$refs);
 
             this.$nextTick(() => {
-                AuditService.postAuditFeed(this.auditId, this.post)
+                AuditService.postAuditConversation(this.auditId, this.post)
                 .then(res => {
                     this.feed = [...this.feed, res.data.datas];
                     this.post.content = "";

@@ -40,12 +40,12 @@
 
 					<q-item
 						v-if="!currentAuditType || !currentAuditType.hidden.includes('feed')"
-						:to="'/audits/'+auditId+'/feed'"
+						:to="'/audits/'+auditId+'/conversation'"
 					>
 						<q-item-section avatar>
 							<q-icon name="fa fa-comments"></q-icon>
 						</q-item-section>
-						<q-item-section>Feed ({{audit.feed ? audit.feed.length : 0}})</q-item-section>
+						<q-item-section>Conversation ({{audit.conversation ? audit.conversation.length : 0}})</q-item-section>
 					</q-item>
 
 					<div class="row">

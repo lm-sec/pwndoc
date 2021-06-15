@@ -78,7 +78,7 @@ var AuditSchema = new Schema({
     customFields:       [customField],
     isReadyForReview:   Boolean,
     approvals:          [{type: Schema.Types.ObjectId, ref: 'User'}],
-    feed:               [Post],
+    conversation:       [Post],
 }, {timestamps: true});
 
 /*
@@ -620,10 +620,10 @@ AuditSchema.statics.updateApprovals = (isAdmin, auditId, userId, update) => {
     });
 }
 
-AuditSchema.statics.getFeed = (isAdmin, auditId, userId) => {
+AuditSchema.statics.getConversation = (isAdmin, auditId, userId) => {
     return new Promise((resolve, reject) => {
         var query = Audit.findById(auditId).populate({
-            path: 'feed.user', 
+            path: 'conversation.user', 
             select: 'username'
         });
         
@@ -632,10 +632,10 @@ AuditSchema.statics.getFeed = (isAdmin, auditId, userId) => {
             if (!row)
                 throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
 
-            if(!row.feed) 
+            if(!row.conversation) 
                 resolve([]);
 
-            resolve(row.feed);
+            resolve(row.conversation);
         })
         .catch((err) => {
             reject(err)
@@ -643,7 +643,7 @@ AuditSchema.statics.getFeed = (isAdmin, auditId, userId) => {
     });
 }
 
-AuditSchema.statics.updateFeed = (isAdmin, auditId, userId, update) => {
+AuditSchema.statics.updateConversation = (isAdmin, auditId, userId, update) => {
     return new Promise((resolve, reject) => {
         var query = Audit.findByIdAndUpdate(auditId, update);
         
