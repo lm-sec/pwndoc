@@ -64,16 +64,22 @@ export default {
             })
         },
 
-        sendPost: function() {
+        // Sends post to audit conversation.
+        sendAuditConversationPost: function() {
             Utils.syncEditors(this.$refs);
 
             this.$nextTick(() => {
+                // Prevents posting of empty string (client-side).
+                if(this.post.conent === '') return;
+
                 AuditService.postAuditConversation(this.auditId, this.post)
                 .then(res => {
                     this.conversation = [...this.conversation, res.data.datas];
                     this.post.content = "";
 
-                    Utils.syncEditors(this.$refs);
+                    this.$nextTick(() => {
+                        Utils.syncEditors(this.$refs);
+                    });
                 }).catch(err => {
                     console.log(err);
                 })
