@@ -657,8 +657,7 @@ AuditSchema.statics.pushConversationPost = (isAdmin, auditId, userId, post) => {
         
         query.exec()
         .then(row => {
-            if (!row)
-                throw({fn: 'NotFound', message: 'Audit conversation not found or Insufficient Privileges'});
+            if (!row) throw({fn: 'NotFound', message: 'Audit conversation not found or Insufficient Privileges'});
             
             resolve(row.conversation[row.conversation.length - 1]);
         })
@@ -692,8 +691,6 @@ AuditSchema.statics.updateConversationPost = (isAdmin, auditId, userId, postId, 
         query.exec()
         .then(row => {
             if (!row) throw({fn: 'NotFound', message: 'Audit post not found or Insufficient Privileges'});
-
-            console.log(row);
 
             resolve("Updated post successfully.");
         })
