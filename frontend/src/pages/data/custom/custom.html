@@ -219,6 +219,7 @@
                                     <span class="text-grey-7 text-italic">Hide Built-in Sections</span>
                                     <q-checkbox v-model="newAuditType.hidden" val="network" label="Network Scan" />
                                     <q-checkbox v-model="newAuditType.hidden" val="findings" label="Findings" />
+                                    <q-checkbox v-model="newAuditType.hidden" val="conversation" label="Conversation" />
                                 </q-item-section>
                             </q-item>
                             <q-separator inset class="q-mb-sm" />
@@ -293,6 +294,7 @@
                                                     <span class="text-grey-7 text-italic">Hidden Built-in Sections</span>
                                                     <q-checkbox v-model="auditType.hidden" disable val="network" label="Network Scan" />
                                                     <q-checkbox v-model="auditType.hidden" disable val="findings" label="Findings" />
+                                                    <q-checkbox v-model="auditType.hidden" disable val="conversation" label="Conversation" />
                                                 </q-item-section>
                                             </q-item>
                                         </q-expansion-item>
@@ -415,6 +417,7 @@
                                                             <span class="text-grey-7 text-italic">Hidden Built-in Sections</span>
                                                             <q-checkbox v-model="auditType.hidden" val="network" label="Network Scan" />
                                                             <q-checkbox v-model="auditType.hidden" val="findings" label="Findings" />
+                                                            <q-checkbox v-model="auditType.hidden" val="conversation" label="Conversation" />
                                                         </q-item-section>
                                                     </q-item>
                                                 </q-expansion-item>
