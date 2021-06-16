@@ -377,39 +377,10 @@ module.exports = function(app, io) {
 
     // Give or remove a reviewer's approval to an audit
     app.put("/api/audits/:auditId/toggleApproval", acl.hasPermission('audits:review'), function(req, res) {
-        Audit.findById(req.params.auditId)
-        .then((audit) => {
-            var hasApprovedBefore = false;
-            var newApprovalsArray = [];
-            if (audit.approvals) {
-                audit.approvals.forEach((approval) => {
-                    if (approval._id.toString() === req.decodedToken.id) {
-                        hasApprovedBefore = true;
-                    } else {
-                        newApprovalsArray.push(approval);
-                    }
-                });
-            }
-
-            if (!hasApprovedBefore) {
-                newApprovalsArray.push({
-                    _id: req.decodedToken.id,
-                    role: req.decodedToken.role,
-                    username: req.decodedToken.username,
-                    firstname: req.decodedToken.firstname,
-                    lastname: req.decodedToken.lastname
-                });
-            }
-
-            var update = { approvals : newApprovalsArray};
-            Audit.updateApprovals(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, update)
-            .then(() => {
-                io.to(req.params.auditId).emit('updateAudit');
-                Response.Ok(res, "Approval updated successfully.")
-            })
-            .catch((err) => {
-                Response.Internal(res, err);
-            })
+        Audit.toggleApproval(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id)
+        .then(() => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, "Approval updated successfully.")
         })
         .catch((err) => {
             Response.Internal(res, err);

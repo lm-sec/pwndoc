@@ -50,7 +50,7 @@ var Host = {
 }
 
 var Post = new Schema({
-    type:       {type: String, enum: ['message']},
+    type:       {type: String, enum: ['message', 'review', 'approve']},
     user:       {type: Schema.Types.ObjectId, ref: 'User'},
     content:    Schema.Types.Mixed,
     createdAt:  Schema.Types.Date,
@@ -289,9 +289,14 @@ AuditSchema.statics.updateGeneral = (isAdmin, auditId, userId, update) => {
             var Company = mongoose.model("Company");
             update.company = await Company.create(update.company)
         }
-        var query = Audit.findByIdAndUpdate(auditId, update)
-        if (!isAdmin)
+        var query = Audit.findOneAndUpdate({ _id: auditId }, update)
+
+        if (!isAdmin) {
             query.or([{creator: userId}, {collaborators: userId}])
+        } else {
+            query.or([{ _id: auditId }, {creator: userId}, {collaborators: userId}])
+        }
+            
         query.exec()
         .then(row => {
             if (!row)
@@ -328,7 +333,7 @@ AuditSchema.statics.getNetwork = (isAdmin, auditId, userId) => {
 // Update audit Network information
 AuditSchema.statics.updateNetwork = (isAdmin, auditId, userId, scope) => {
     return new Promise((resolve, reject) => { 
-        var query = Audit.findByIdAndUpdate(auditId, scope)
+        var query = Audit.findOneAndUpdate({ _id: auditId }, scope)
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}])
         query.exec()
@@ -600,23 +605,40 @@ AuditSchema.statics.deleteSection = (isAdmin, auditId, userId, sectionId) => {
     })
 }
 
-AuditSchema.statics.updateApprovals = (isAdmin, auditId, userId, update) => {
+// Toggles approval state for userId.
+AuditSchema.statics.toggleApproval = (isAdmin, auditId, userId) => {
     return new Promise((resolve, reject) => {
-        var query = Audit.findByIdAndUpdate(auditId, update)
+        const find = {_id: auditId};
+        const error = {fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'};
+
+        // Get current audit (and check if userId is a reviewer).
+        let query = Audit.findOne(find);
+
         query.nor([{creator: userId}, {collaborators: userId}]);
-        if (!isAdmin)
-            query.or([{reviewers: userId}]);
-        
+
+        if (!isAdmin) query.or([{reviewers: userId}]);
+
         query.exec()
-        .then(row => {
-            if (!row)
-                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
-            
-            resolve("Audit approvals updated successfully");
+        .then(audit => {
+            // If not found, then either audit cannot be found or userId was not a reviewer.
+            if (!audit) throw(error);
+
+            const reviewerAlreadyApproved = audit.approvals.some(reviewerId => reviewerId.toString() === userId.toString());
+
+            // We pull the userId if already approved, else we push the userId.
+            Audit.findOneAndUpdate(find, {
+                [reviewerAlreadyApproved ? "$pull" : "$push"]: {
+                    "approvals": userId
+                }
+            }).exec()
+            .then(row => {
+                if(!row) throw(error);
+
+                resolve('Audit approval updated successfully')  
+            })
+            .catch(err => reject(err));
         })
-        .catch((err) => {
-            reject(err)
-        })
+        .catch(err => reject(err));
     });
 }
 
@@ -728,6 +750,46 @@ AuditSchema.statics.deleteConversationPost = (isAdmin, auditId, userId, postId) 
         .catch(err => reject(err))
     });
 }
+
+/*
+*** Hooks ***
+*/
+
+async function sendPostIfReviewChanged(query, update, audit) {
+    if(!query || !update || !audit || !query['$or']) return;
+
+    const userId = query['$or'].find(obj => obj['creator'])?.creator;
+
+    if(!userId || audit.isReadyForReview === update.isReadyForReview) return;
+
+    AuditSchema.statics.pushConversationPost(true, audit._id, userId, {
+        type: 'review',
+        content: update.isReadyForReview
+    });
+}
+
+async function sendPostIfApprovalChanged(query, update, audit) {
+    if(!update['$push'] && !update['$pull']) return;
+
+    const isApproving = update['$push'] != undefined;
+    const userId = (isApproving ? update['$push'] : update['$pull']).approvals;
+
+    if(!userId) return;
+
+    AuditSchema.statics.pushConversationPost(true, audit._id, userId, {
+        type: 'approve',
+        content: isApproving
+    });
+}
+
+AuditSchema.pre('findOneAndUpdate', async function() {
+    const query = this.getFilter();
+    const update = this.getUpdate();
+    const audit = await this.model.findOne(query);
+
+    await sendPostIfReviewChanged(query, update, audit);
+    await sendPostIfApprovalChanged(query, update, audit);
+});
 
 /*
 *** Methods ***

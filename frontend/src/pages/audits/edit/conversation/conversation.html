@@ -28,8 +28,15 @@
             <div v-for="post of this.conversation" :key="post._id">
                 <q-card>
                     <q-item>
-                        <q-item-section avatar>
-                            <q-icon v-if="post.type == 'message'" color="secondary" name="fa fa-user"></q-icon>
+                        <q-item-section v-if="post.type == 'message'" avatar>
+                            <q-icon color="secondary" name="fa fa-user"></q-icon>
+                        </q-item-section>
+                        <q-item-section v-else-if="post.type == 'review'" avatar>
+                            <q-icon color="primary" :name="(post.content) ? 'fa fa-clipboard' : 'fa fa-edit'"></q-icon>
+                        </q-item-section>
+                        <q-item-section v-else-if="post.type == 'approve'" avatar>
+                            <q-icon v-if="post.content" color="positive" name="fa fa-check"></q-icon>
+                            <q-icon v-else color="negative" name="fa fa-ban"></q-icon>
                         </q-item-section>
     
                         <q-item-section>
@@ -37,7 +44,7 @@
                             <q-item-label caption>{{ post.date + ((post.edited) ? " - (edited)" : "") }}</q-item-label>
                         </q-item-section>
 
-                        <q-item-section v-if="post.user.me">
+                        <q-item-section v-if="post.user.me && post.type == 'message'">
                             <div class="row justify-end">
                                 <q-btn-dropdown flat round>
                                     <q-item v-if="!post.edit" clickable v-close-popup @click="editAuditConversationPost(post)">
@@ -60,8 +67,16 @@
 
                     <q-separator/>
 
-                    <q-card-section>
+                    <q-card-section v-if="post.type == 'message'">
                         <basic-editor ref="basiceditor_post" noSync noAffix :readOnly="!post.edit" v-model="post.content"/>
+                    </q-card-section>
+                    <q-card-section v-else-if="post.type == 'review'">
+                        <span v-if="post.content"><u>{{ post.user.username }}</u> set audit ready for review.</span>
+                        <span v-else><u>{{ post.user.username }}</u> set audit to edit.</span>
+                    </q-card-section>
+                    <q-card-section v-else-if="post.type == 'approve'">
+                        <span v-if="post.content"><u>{{ post.user.username }}</u> approved audit.</span>
+                        <span v-else><u>{{ post.user.username }}</u> removed approval from audit.</span>
                     </q-card-section>
                 </q-card>
                 <br/>
