@@ -686,13 +686,18 @@ AuditSchema.statics.updateConversationPost = (isAdmin, auditId, userId, postId, 
                 }],
                 new: true 
             }
-        );
+        ).populate({
+            path: 'conversation.user', 
+            select: 'username'
+        });
         
         query.exec()
         .then(row => {
             if (!row) throw({fn: 'NotFound', message: 'Audit post not found or Insufficient Privileges'});
 
-            resolve("Updated post successfully.");
+            const post = row.conversation.find(post => post.id.toString() === postId.toString());
+
+            resolve(post);
         })
         .catch(err => reject(err))
     });

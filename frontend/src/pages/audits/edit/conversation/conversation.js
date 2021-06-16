@@ -1,4 +1,5 @@
 import { Notify, Dialog } from 'quasar';
+import moment from 'moment';
 
 import Breadcrumb from 'components/breadcrumb';
 import BasicEditor from 'components/editor';
@@ -61,7 +62,9 @@ export default {
                 user: {
                     ...post.user, 
                     me: post.user._id === UserService.user.id
-                }, 
+                },
+                date: moment(post.createdAt).fromNow(),
+                edited: post.createdAt != post.updatedAt,
                 edit: false 
             };
         },
@@ -109,7 +112,11 @@ export default {
 
                 this.$nextTick(() => {
                     AuditService.updateAuditConversation(this.auditId, post._id, post)
-                    .then((data) => {
+                    .then(res => {
+                        const newPost = this.convertPost(res.data.datas);
+
+                        this.conversation = this.conversation.map(p => (p._id === post._id ? newPost : p));
+
                         Notify.create({
                             message: 'Post updated successfully',
                             color: 'positive',

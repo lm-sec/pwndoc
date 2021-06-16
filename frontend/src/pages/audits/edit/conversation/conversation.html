@@ -34,7 +34,7 @@
     
                         <q-item-section>
                             <q-item-label>{{ post.user.username }}</q-item-label>
-                            <q-item-label caption>{{ new Date(post.createdAt) }}</q-item-label>
+                            <q-item-label caption>{{ post.date + ((post.edited) ? " - (edited)" : "") }}</q-item-label>
                         </q-item-section>
 
                         <q-item-section v-if="post.user.me">
