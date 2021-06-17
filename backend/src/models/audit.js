@@ -646,7 +646,7 @@ AuditSchema.statics.getConversation = (isAdmin, auditId, userId) => {
     return new Promise((resolve, reject) => {
         var query = Audit.findById(auditId).populate({
             path: 'conversation.user', 
-            select: 'username'
+            select: 'username firstname lastname'
         });
         
         query.exec()
@@ -674,7 +674,7 @@ AuditSchema.statics.pushConversationPost = (isAdmin, auditId, userId, post) => {
             { new: true }
         ).populate({
             path: 'conversation.user', 
-            select: 'username'
+            select: 'username firstname lastname'
         });
         
         query.exec()
@@ -710,7 +710,7 @@ AuditSchema.statics.updateConversationPost = (isAdmin, auditId, userId, postId, 
             }
         ).populate({
             path: 'conversation.user', 
-            select: 'username'
+            select: 'username firstname lastname'
         });
         
         query.exec()

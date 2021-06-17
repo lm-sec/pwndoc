@@ -61,7 +61,8 @@ export default {
                 ...post, 
                 user: {
                     ...post.user, 
-                    me: post.user._id === UserService.user.id
+                    me: post.user._id === UserService.user.id,
+                    fullName: `${post.user.firstname} ${post.user.lastname}`
                 },
                 date: moment(post.createdAt).fromNow(),
                 edited: post.createdAt != post.updatedAt,

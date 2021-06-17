@@ -40,7 +40,7 @@
                         </q-item-section>
     
                         <q-item-section>
-                            <q-item-label>{{ post.user.username }}</q-item-label>
+                            <q-item-label>{{ post.user.fullName }}</q-item-label>
                             <q-item-label caption>{{ post.date + ((post.edited) ? " - (edited)" : "") }}</q-item-label>
                         </q-item-section>
 
@@ -71,12 +71,12 @@
                         <basic-editor ref="basiceditor_post" noSync noAffix :readOnly="!post.edit" v-model="post.content"/>
                     </q-card-section>
                     <q-card-section v-else-if="post.type == 'review'">
-                        <span v-if="post.content"><u>{{ post.user.username }}</u> set audit ready for review.</span>
-                        <span v-else><u>{{ post.user.username }}</u> set audit to edit.</span>
+                        <span v-if="post.content"><u>{{ post.user.fullName }}</u> set audit ready for review.</span>
+                        <span v-else><u>{{ post.user.fullName }}</u> set audit to edit.</span>
                     </q-card-section>
                     <q-card-section v-else-if="post.type == 'approve'">
-                        <span v-if="post.content"><u>{{ post.user.username }}</u> approved audit.</span>
-                        <span v-else><u>{{ post.user.username }}</u> removed approval from audit.</span>
+                        <span v-if="post.content"><u>{{ post.user.fullName }}</u> approved audit.</span>
+                        <span v-else><u>{{ post.user.fullName }}</u> removed approval from audit.</span>
                     </q-card-section>
                 </q-card>
                 <br/>
