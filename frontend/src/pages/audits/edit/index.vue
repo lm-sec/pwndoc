@@ -7,6 +7,25 @@
 					<q-item>
 						<q-item-section>Sections</q-item-section>
 						<q-item-section side>
+							<div v-if="isEditing">
+								<q-btn v-if="isReadyForReview" flat dense size="sm" color="secondary" icon="fa fa-clipboard" @click="toggleAskReview">
+									<q-tooltip anchor="bottom middle" self="center left" :delay="500" content-class="text-bold">Back to Edit</q-tooltip> 
+								</q-btn>
+								<q-btn v-else flat dense size="sm" color="secondary" icon="fa fa-edit" @click="toggleAskReview">
+									<q-tooltip anchor="bottom middle" self="center left" :delay="500" content-class="text-bold">Submit for Review</q-tooltip> 
+								</q-btn>
+							</div>
+							<div v-else-if="isReviewing && isReadyForReview">
+								<q-btn v-if="isApproved" flat dense size="sm" color="positive" icon="fa fa-check-circle" @click="toggleApproval">
+									<q-tooltip anchor="bottom middle" self="center left" :delay="500" content-class="text-bold">Remove Approval from Audit</q-tooltip> 
+								</q-btn>
+								<q-btn v-else flat dense size="sm" color="negative" icon="fa fa-times-circle" @click="toggleApproval">
+									<q-tooltip anchor="bottom middle" self="center left" :delay="500" content-class="text-bold">Approve Audit</q-tooltip> 
+								</q-btn>
+							</div>
+							
+						</q-item-section>
+						<q-item-section side>
 							<q-btn flat dense size="sm" color="info" icon="fa fa-download" @click="generateReport">
 								<q-tooltip anchor="bottom middle" self="center left" :delay="500" content-class="text-bold">Download Report</q-tooltip> 
 							</q-btn>
@@ -101,19 +120,6 @@
 						</div>
 					</q-list>
 				</q-list>
-
-				<q-separator />
-
-				<div class="row justify-center q-pt-lg">
-					<div v-if="isEditing">
-						<q-btn v-if="isReadyForReview" color="warning" label="Remove Submission" no-caps class="topButton" @click="toggleAskReview" />
-						<q-btn v-else color="secondary" label="Submit for Review" no-caps class="topButton" @click="toggleAskReview" />
-					</div>
-					<div v-else-if="isReviewing && isReadyForReview">
-						<q-btn v-if="isApproved" color="warning" label="Remove Approval" no-caps class="topButton" @click="toggleApproval" />
-						<q-btn v-else color="secondary" label="Approve Report" no-caps class="topButton" @click="toggleApproval" />
-					</div>
-				</div>
 			</template>
 			<template v-slot:after>
 				<q-list>
