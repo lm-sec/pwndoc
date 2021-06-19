@@ -82,6 +82,8 @@ export default {
 
         //draw in canvas
         var ctx = canvas.getContext('2d');
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(this, 0, 0, resize_width, resize_height)
 
         var result = canvas.toDataURL('image/jpeg')
