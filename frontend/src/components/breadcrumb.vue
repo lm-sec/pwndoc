@@ -3,16 +3,14 @@
         <q-btn 
         v-if="typeof(buttons) !== 'undefined'" 
         flat 
-        color="secondary"
+        color='secondary'
         @click="$router.push('/audits')"
         >
             <i class="fa fa-home fa-lg"></i>
         </q-btn>
         <p v-if="typeof(title) === 'undefined'" class="breadcrumb-title">{{bread[last].name}}</p>
         <p v-else class="breadcrumb-title">{{title}} 
-            <q-icon v-if="approved" size="sm" flat color="positive" name="far fa-check-circle" class="approvedMark">
-                <q-tooltip anchor="bottom middle" self="center left" :delay="500" content-class="text-bold">Audit is approved</q-tooltip> 
-            </q-icon>
+            <audit-state-icon class="q-mx-sm" size="xs" :approvals="approvals" :state="state"/>
         </p>
         <q-breadcrumbs v-if="typeof(buttons) === 'undefined'" separator="/" active-color="secondary" color="light" align="right">
             <q-breadcrumbs-el v-for="breadcrumb in bread" :label="breadcrumb.name" :to="breadcrumb.path" :key="breadcrumb.path" />
@@ -24,10 +22,15 @@
 </template>
 
 <script>
+import AuditStateIcon from 'components/audit-state-icon';
 
 export default {
     name: 'breadcrumb',
-    props: ['buttons', 'title', 'approved'],
+    props: ['buttons', 'title', 'approvals', 'state'],
+
+    components: {
+        AuditStateIcon
+    },
 
     data: function() {
         return {
@@ -41,7 +44,7 @@ export default {
     },
 
     methods: {
-        initBreadcrumb: function() {
+        initBreadcrumb: async function() {
             var breadArray = this.$route.matched;
             breadArray.forEach((element) => {
                 var entry = {};

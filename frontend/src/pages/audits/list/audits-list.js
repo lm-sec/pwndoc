@@ -1,12 +1,12 @@
 import { Dialog, Notify } from 'quasar';
 
+import AuditStateIcon from 'components/audit-state-icon'
 import Breadcrumb from 'components/breadcrumb'
 
 import AuditService from '@/services/audit'
 import DataService from '@/services/data'
 import CompanyService from '@/services/company'
 import UserService from '@/services/user'
-import ConfigsService from '@/services/configs'
 
 export default {
     data: () => {
@@ -53,13 +53,14 @@ export default {
             displayReadyForReview: false,
             // Errors messages
             errors: {name: '', language: '', auditType: ''},
-            // Selected or New Audit
-            currentAudit: {name: '', language: '', template: ''},
-            // The application's public configs
+            auditType: "",
+            auditLanguage: "",
+            auditName: ""
         }
     },
 
     components: {
+        AuditStateIcon,
         Breadcrumb
     },
 
@@ -107,19 +108,13 @@ export default {
             })
         },
 
-        isAuditApproved: function(audit) {      
-            return audit.approvals.length >= this.configs.minReviewers;
-        },
-
         getAudits: function() {
             this.loading = true
             AuditService.getAudits({findingTitle: this.search.finding})
             .then(async (data) => {
-                this.audits = data.data.datas
-                var configs = await this.getPublicConfigs();
-                this.configs = configs.data.datas;
+                this.audits = data.data.datas;
                 this.audits.forEach((audit) => {
-                    audit.isApproved = this.isAuditApproved(audit);
+                    audit.isApproved = audit.state === "APPROVED";
                 });
                 this.loading = false
             })
@@ -128,26 +123,26 @@ export default {
             })
         },
 
-        getPublicConfigs: async function() {
-            return await ConfigsService.getPublicConfigs();
-        },
-
-        
-
         createAudit: function() {
             this.cleanErrors();
-            if (!this.currentAudit.name)
+            if (!this.auditName)
                 this.errors.name = "Name required";
-            if (!this.currentAudit.language)
+            if (!this.auditLanguage)
                 this.errors.language = "Language required";
-            if (!this.currentAudit.auditType)
+            if (!this.auditType)
                 this.errors.auditType = "Assessment required";
                 
             
             if (this.errors.name || this.errors.language || this.errors.auditType)
                 return;
 
-            AuditService.createAudit(this.currentAudit)
+            AuditService.createAudit(
+                {
+                    name: this.auditName,
+                    language: this.auditLanguage,
+                    auditType: this.auditType
+                }
+            )
             .then((response) => {
                 this.$refs.createModal.hide();
                 this.$router.push("/audits/" + response.data.datas.audit._id)
@@ -249,9 +244,9 @@ export default {
 
         cleanCurrentAudit: function() {
             this.cleanErrors();
-            this.currentAudit.name = '';
-            this.currentAudit.language = '';
-            this.currentAudit.auditType = '';
+            this.auditName = "";
+            this.auditLanguage = "";
+            this.auditType = "";
         },
 
         // Convert language locale of audit for table display
@@ -269,8 +264,13 @@ export default {
             return result.join(', '); 
         },
 
+        isAuditCollaborator(user, audit) {
+            return audit.creator.id === user._id || audit.collaborators.some(collaborator => collaborator._id === user.id);
+        },
+
         customFilter: function(rows, terms, cols, getCellValue) {
-            var username = this.UserService.user.username.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            const user = this.UserService.user;
+            var username = user.username.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 
             var nameTerm = (terms.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             var languageTerm = (terms.language)? terms.language.toLowerCase(): ""
@@ -292,7 +292,7 @@ export default {
                     date.indexOf(dateTerm) > -1 &&
                     ((this.myAudits && users.indexOf(username) > -1) || !this.myAudits) &&
                     ((this.displayConnected && row.connected && row.connected.length > 0) || !this.displayConnected) &&
-                    ((this.displayReadyForReview && (row.isReadyForReview && !row.isApproved)) || !this.displayReadyForReview)
+                    ((this.displayReadyForReview && (!this.isAuditCollaborator(user, row) && row.isReadyForReview && !row.isApproved)) || !this.displayReadyForReview)
             })
         },
 

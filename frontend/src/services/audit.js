@@ -91,5 +91,9 @@ export default {
 
   toggleApproval: function(auditId) {
     return Vue.prototype.$axios.put(`audits/${auditId}/toggleApproval`);
+  },
+
+  updateReadyForReview: function(auditId, data) {
+    return Vue.prototype.$axios.put(`audits/${auditId}/updateReadyForReview`, data);
   }
 }

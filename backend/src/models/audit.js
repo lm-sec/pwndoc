@@ -1,4 +1,5 @@
-var mongoose = require('mongoose')//.set('debug', true);
+var mongoose = require('mongoose');//.set('debug', true);
+const Settings = require('./settings');
 var Schema = mongoose.Schema;
 
 var Paragraph = {
@@ -76,7 +77,7 @@ var AuditSchema = new Schema({
     creator:            {type: Schema.Types.ObjectId, ref: 'User'},
     sections:           [{field: String, name: String, text: String, customFields: [customField]}], // keep text for retrocompatibility
     customFields:       [customField],
-    isReadyForReview:   Boolean,
+    state:              { type: String, enum: ['EDIT', 'REVIEW', 'APPROVED'], default: 'EDIT'},
     approvals:          [{type: Schema.Types.ObjectId, ref: 'User'}],
     conversation:       [Post],
 }, {timestamps: true});
@@ -91,12 +92,12 @@ AuditSchema.statics.getAudits = (isAdmin, userId, filters) => {
         var query = Audit.find(filters)
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}, {reviewers: userId}])
-        query.populate('creator', '-_id username')
-        query.populate('collaborators', '-_id username')
-        query.populate('reviewers', '-_id username')
-        query.populate('approvals', '-_id username')
-        query.populate('company', '-_id name')
-        query.select('id name language creator collaborators company createdAt isReadyForReview')
+        query.populate('creator', 'id username')
+        query.populate('collaborators', 'id username')
+        query.populate('reviewers', 'id username firstname lastname')
+        query.populate('approvals', 'id username firstname lastname')
+        query.populate('company', 'id name')
+        query.select('id name language creator collaborators company createdAt state')
         query.exec()
         .then((rows) => {
             resolve(rows)
@@ -264,7 +265,7 @@ AuditSchema.statics.getGeneral = (isAdmin, auditId, userId) => {
         query.populate('reviewers', 'username firstname lastname')
         query.populate('approvals', 'username firstname lastname')
         query.populate('company')
-        query.select('id name auditType location date date_start date_end client collaborators language scope.name template customFields, isReadyForReview')
+        query.select('id name auditType location date date_start date_end client collaborators language scope.name template customFields state')
         query.exec()
         .then((row) => {
             if (!row)
@@ -316,7 +317,8 @@ AuditSchema.statics.getNetwork = (isAdmin, auditId, userId) => {
         var query = Audit.findById(auditId)
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}, {reviewers: userId}])
-        query.select('scope')
+        query.select('id scope approvals state')
+        query.populate('approvals', 'username firstname lastname')
         query.exec()
         .then((row) => {
             if (!row)
@@ -526,20 +528,21 @@ AuditSchema.statics.createSection = (isAdmin, auditId, userId, section) => {
 // Get section of audit
 AuditSchema.statics.getSection = (isAdmin, auditId, userId, sectionId) => {
     return new Promise((resolve, reject) => { 
-        var query = Audit.findById(auditId)
+        var query = Audit.findOne({ 
+            _id: auditId,
+            "sections._id": sectionId
+        })
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}, {reviewers: userId}])
-        query.select('sections')
+        query.select('id sections approvals state')
+        query.populate('approvals', 'username firstname lastname')
         query.exec()
         .then((row) => {
-            if (!row)
-                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'})
+            if (!row) throw({fn: 'NotFound', message: 'Audit not found, Section ID not found, or Insufficient Privileges'})
 
-            var section = row.sections.id(sectionId);
-            if (section === null) 
-                throw({fn: 'NotFound', message: 'Section id not found'});
-            else 
-                resolve(section);
+            row.sections = [row.sections.id(sectionId)];
+
+            resolve(row);
         })
         .catch((err) => {
             reject(err)
@@ -605,15 +608,17 @@ AuditSchema.statics.deleteSection = (isAdmin, auditId, userId, sectionId) => {
     })
 }
 
-// Toggles approval state for userId.
-AuditSchema.statics.toggleApproval = (isAdmin, auditId, userId) => {
-    return new Promise((resolve, reject) => {
-        const find = {_id: auditId};
-        const error = {fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'};
+AuditSchema.statics.updateApprovals = (isAdmin, auditId, userId, update) => {
+    return new Promise(async (resolve, reject) => {
+        var settings = await Settings.getAll();
 
-        // Get current audit (and check if userId is a reviewer).
-        let query = Audit.findOne(find);
-
+        if (update.approvals.length >= settings.reviews.settings.minReviewers) {
+            update.state = "APPROVED";
+        } else {
+            update.state = "REVIEW";
+        }
+        
+        var query = Audit.findByIdAndUpdate(auditId, update)
         query.nor([{creator: userId}, {collaborators: userId}]);
 
         if (!isAdmin) query.or([{reviewers: userId}]);

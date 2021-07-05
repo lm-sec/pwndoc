@@ -12,15 +12,13 @@ import ReviewerService from '@/services/reviewer';
 import TemplateService from '@/services/template';
 import DataService from '@/services/data';
 import Utils from '@/services/utils';
-import UserService from '@/services/user'
 
 export default {
     props: {
-        isReviewing: Boolean,
-		isEditing: Boolean,
-		isApproved: Boolean,
-		isReadyForReview: Boolean,
-        fullyApproved: Boolean
+        frontEndAuditState: Number,
+        parentState: String,
+        parentApprovals: Array
+
     },
     data: () => {
         return {
@@ -43,7 +41,6 @@ export default {
                 language: "",
                 template: "",
                 customFields: [],
-                isReadyForReview: false,
                 approvals: []
             },
             auditOrig: {},
@@ -66,7 +63,8 @@ export default {
             // List of existing audit types
             auditTypes: [],
             // List of CustomFields
-            customFields: []
+            customFields: [],
+            AUDIT_VIEW_STATE: Utils.AUDIT_VIEW_STATE
         }
     },
 
@@ -79,13 +77,10 @@ export default {
     mounted: function() {
         this.auditId = this.$route.params.auditId;
         this.getAuditGeneral();
-        this.getClients();
         this.getTemplates();
         this.getLanguages();
         this.getAuditTypes();
-        this.isApprovedCopy = this.isApproved;
-        this.isReadyForReviewCopy = this.isReadyForReview;
-
+        this.getClients();
         this.$socket.emit('menu', {menu: 'general', room: this.auditId});
 
         // save on ctrl+s
@@ -259,7 +254,9 @@ export default {
 
         // Filter client options when selecting company
         filterClients: function() {
-            this.audit.client = null
+            if (!this.$_.isEqual(this.audit.company, this.auditOrig.company)) {
+                this.audit.client = null
+            }
             if (this.audit.company) {
                 this.selectClients = [];
                 this.clients.map(client => {
@@ -304,39 +301,8 @@ export default {
             })
         },
 
-        toggleAskReview: function() {
-            AuditService.updateAuditGeneral(this.auditId, { isReadyForReview: !this.audit.isReadyForReview })
-            .then(() => {
-                this.$emit('toggleAskReview');
-                this.audit.isReadyForReview = !this.audit.isReadyForReview;
-                this.auditOrig.isReadyForReview = this.audit.isReadyForReview;
-                Notify.create({
-                    message: 'Audit review status updated successfully',
-                    color: 'positive',
-                    textColor:'white',
-                    position: 'top-right'
-                })
-            })
-            .catch((err) => {             
-                console.log(err.response)
-            });
-        },
-
-        toggleApproval: function() {
-            AuditService.toggleApproval(this.auditId)
-            .then(() => {
-                this.$emit('toggleApproval');
-
-                Notify.create({
-                    message: 'Audit approval updated successfully',
-                    color: 'positive',
-                    textColor:'white',
-                    position: 'top-right'
-                })
-            })
-            .catch((err) => {          
-                console.log(err.response)
-            });
+        isReviewerApproved(reviewer) {
+            return this.audit.approvals.find(r => r._id === reviewer._id);
         }
     }
 }
