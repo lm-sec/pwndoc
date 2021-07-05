@@ -10,16 +10,14 @@ import Utils from '@/services/utils';
 
 export default {
     props: {
-        isReviewing: Boolean,
-		isEditing: Boolean,
-		isApproved: Boolean,
-		isReadyForReview: Boolean,
-        fullyApproved: Boolean
+        parentState: String,
+        parentApprovals: Array
     },
     data: () => {
         return {
             // Set audit ID
             auditId: null,
+            audit: {},
             conversation: [],
             conversationOrig: [],
             post: {

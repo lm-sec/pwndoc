@@ -1,5 +1,5 @@
 <div>
-    <breadcrumb buttons :title="`${$parent.audit.name} (${$parent.audit.auditType || 'Audit Type not set'})`" id="edit-breadcrumb-affix" :approved="fullyApproved">
+    <breadcrumb buttons :title="`${$parent.audit.name} (${$parent.audit.auditType || 'Audit Type not set'})`" id="edit-breadcrumb-affix" :state="parentState" :approvals="parentApprovals">
     </breadcrumb>
 
     <q-dialog v-model="deleteDialog" persistent>

@@ -233,7 +233,6 @@ export default {
     data() {
         return {
             editor: new Editor({
-                editable: this.editable,
                 extensions: [
                     new Blockquote(),
                     new BulletList(),
@@ -275,6 +274,12 @@ export default {
             }
             var content = this.htmlEncode(this.value)
             this.editor.setContent(content);
+       },
+
+       editable (value) {
+           this.editor.setOptions({
+            editable: this.editable,
+        });
        }
     },
 
