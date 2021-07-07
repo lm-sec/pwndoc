@@ -9,7 +9,7 @@ module.exports = function(app, io) {
     var reportGenerator = require('../lib/report-generator');
     var _ = require('lodash');
     var utils = require('../lib/utils');
-    var Configs = require('../models/configs').model('Configs');
+    var Settings = require('../models/settings').model('Settings');
 
     /* ### AUDITS LIST ### */
 
@@ -43,7 +43,7 @@ module.exports = function(app, io) {
                     a.createdAt = audit.createdAt
                     a.reviewers = audit.reviewers
                     a.approvals = audit.approvals
-                    a.isReadyForReview = audit.isReadyForReview
+                    a.state = audit.state
                     if (acl.isAllowed(req.decodedToken.role, 'audits:users-connected'))
                         a.connected = getUsersRoom(audit._id)
                     result.push(a)
@@ -99,6 +99,10 @@ module.exports = function(app, io) {
         var update = {};
 
         var audit = await Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id);
+        if (audit.state !== "EDIT") {
+            Response.Unauthorized(res, "The audit is not in the EDIT state and therefore cannot be edited.");
+            return;
+        }
         var invalid = false;
 
         if (req.body.reviewers) {
@@ -182,10 +186,9 @@ module.exports = function(app, io) {
         }
         if (req.body.template) update.template = req.body.template;
         if (req.body.customFields) update.customFields = req.body.customFields;
-        if (req.body.isReadyForReview != undefined) update.isReadyForReview = req.body.isReadyForReview;
 
-        var configs = await Configs.findOne();
-        if (configs.removeApprovalsUponUpdate) {
+        var settings = await Settings.getAll();
+        if (settings.reviews.enabled && settings.reviews.settings.removeApprovalsUponUpdate) {
             update.approvals = [];
         }
 
@@ -206,12 +209,18 @@ module.exports = function(app, io) {
 
     // Update audit network information
     app.put("/api/audits/:auditId/network", acl.hasPermission('audits:update'), async function(req, res) {
+        var audit = await Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id);
+        if (audit.state !== "EDIT") {
+            Response.Unauthorized(res, "The audit is not in the EDIT state and therefore cannot be edited.");
+            return;
+        }
+
         var update = {};
         // Optional parameters
         if (req.body.scope) update.scope = req.body.scope;
 
-        var configs = await Configs.findOne();
-        if (configs.removeApprovalsUponUpdate) {
+        var settings = await Settings.getAll();
+        if (settings.reviews.enabled && settings.reviews.settings.removeApprovalsUponUpdate) {
             Audit.updateGeneral(acl.isAllowed(req.decodedToken.role, 'audits:update-all'), req.params.auditId, req.decodedToken.id, { approvals: [] });
         }
 
@@ -222,6 +231,11 @@ module.exports = function(app, io) {
 
     // Add finding to audit
     app.post("/api/audits/:auditId/findings", acl.hasPermission('audits:update'), async function(req, res) {
+        var audit = await Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id);
+        if (audit.state !== "EDIT") {
+            Response.Unauthorized(res, "The audit is not in the EDIT state and therefore cannot be edited.");
+            return;
+        }
         if (!req.body.title) {
             Response.BadParameters(res, 'Missing some required parameters: title');
             return;
@@ -248,8 +262,8 @@ module.exports = function(app, io) {
         if (req.body.category) finding.category = req.body.category
         if (req.body.customFields) finding.customFields = req.body.customFields
 
-        var configs = await Configs.findOne();
-        if (configs.removeApprovalsUponUpdate) {
+        var settings = await Settings.getAll();
+        if (settings.reviews.enabled && settings.reviews.settings.removeApprovalsUponUpdate) {
             Audit.updateGeneral(acl.isAllowed(req.decodedToken.role, 'audits:update-all'), req.params.auditId, req.decodedToken.id, { approvals: [] });
         }
 
@@ -277,6 +291,12 @@ module.exports = function(app, io) {
 
     // Update finding of audit
     app.put("/api/audits/:auditId/findings/:findingId", acl.hasPermission('audits:update'), async function(req, res) {
+        var audit = await Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id);
+        if (audit.state !== "EDIT") {
+            Response.Unauthorized(res, "The audit is not in the EDIT state and therefore cannot be edited.");
+            return;
+        }
+        
         var finding = {};
         // Optional parameters
         if (req.body.title) finding.title = req.body.title;
@@ -296,8 +316,8 @@ module.exports = function(app, io) {
         if (req.body.category) finding.category = req.body.category
         if (req.body.customFields) finding.customFields = req.body.customFields
 
-        var configs = await Configs.findOne();
-        if (configs.removeApprovalsUponUpdate) {
+        var settings = await Settings.getAll();
+        if (settings.reviews.enabled && settings.reviews.settings.removeApprovalsUponUpdate) {
             Audit.updateGeneral(acl.isAllowed(req.decodedToken.role, 'audits:update-all'), req.params.auditId, req.decodedToken.id, { approvals: [] });
         }
 
@@ -310,7 +330,12 @@ module.exports = function(app, io) {
     });
 
     // Delete finding of audit
-    app.delete("/api/audits/:auditId/findings/:findingId", acl.hasPermission('audits:update'), function(req, res) {
+    app.delete("/api/audits/:auditId/findings/:findingId", acl.hasPermission('audits:update'), async function(req, res) {
+        var audit = await Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id);
+        if (audit.state !== "EDIT") {
+            Response.Unauthorized(res, "The audit is not in the EDIT state and therefore cannot be edited.");
+            return;
+        }
         Audit.deleteFinding(acl.isAllowed(req.decodedToken.role, 'audits:update-all'), req.params.auditId, req.decodedToken.id, req.params.findingId)
         .then(msg => {
             io.to(req.params.auditId).emit('updateAudit');            
@@ -328,6 +353,11 @@ module.exports = function(app, io) {
 
     // Update section of audit
     app.put("/api/audits/:auditId/sections/:sectionId", acl.hasPermission('audits:update'), async function(req, res) {
+        var audit = await Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id);
+        if (audit.state !== "EDIT") {
+            Response.Unauthorized(res, "The audit is not in the EDIT state and therefore cannot be edited.");
+            return;
+        }
         if (typeof req.body.customFields === 'undefined') {
             Response.BadParameters(res, 'Missing some required parameters: customFields');
             return;
@@ -339,8 +369,8 @@ module.exports = function(app, io) {
         // For retrocompatibility with old section.text usage
         if (req.body.text) section.text = req.body.text; 
 
-        var configs = await Configs.findOne();
-        if (configs.removeApprovalsUponUpdate) {
+        var settings = await Settings.getAll();
+        if (settings.reviews.enabled && settings.reviews.settings.removeApprovalsUponUpdate) {
             Audit.updateGeneral(acl.isAllowed(req.decodedToken.role, 'audits:update-all'), req.params.auditId, req.decodedToken.id, { approvals: [] });
         }
 
@@ -354,10 +384,11 @@ module.exports = function(app, io) {
     // Generate Report for specific audit
     app.get("/api/audits/:auditId/generate", acl.hasPermission('audits:read'), function(req, res){
         Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id)
-        .then( async audit => {
-            var configs = await Configs.findOne();
-            if (configs.mandatoryReview && configs.minReviewers > audit.approvals.length) {
-                Response.Forbidden(res, "Audit does not have the minimal number of approvals to export.");
+        .then(async audit => {
+            var settings = await Settings.getAll();
+
+            if (settings.reviews.enabled && settings.reviews.settings.mandatoryReview && audit.state !== 'APPROVED') {
+                Response.Forbidden(res, "Audit was not approved therefore cannot be exported.");
                 return;
             }
 
@@ -376,9 +407,21 @@ module.exports = function(app, io) {
     });
 
     // Give or remove a reviewer's approval to an audit
-    app.put("/api/audits/:auditId/toggleApproval", acl.hasPermission('audits:review'), function(req, res) {
+    app.put("/api/audits/:auditId/toggleApproval", acl.hasPermission('audits:review'), async function(req, res) {
+        const settings = await Settings.getAll();
+
+        if (!settings.reviews.enabled) {
+            Response.Unauthorized(res, "Audit reviews are not enabled.");
+            return;
+        }
+
         Audit.findById(req.params.auditId)
-        .then((audit) => {
+        .then(audit => {
+            if (audit.state !== "REVIEW" && audit.state !== "APPROVED") {
+                Response.Unauthorized(res, "The audit is not in the approvable in the current state.");
+                return;
+            }
+
             var hasApprovedBefore = false;
             var newApprovalsArray = [];
             if (audit.approvals) {
@@ -414,5 +457,77 @@ module.exports = function(app, io) {
         .catch((err) => {
             Response.Internal(res, err);
         })
+    });
+
+    app.get("/api/audits/:auditId/conversation", acl.hasPermission('audits:review'), function(req, res) { 
+        Audit.getConversation(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id)
+        .then(msg => Response.Ok(res, msg))
+        .catch(err => Response.Internal(res, err))
+    });
+
+    app.post("/api/audits/:auditId/conversation", acl.hasPermission('audits:review'), function(req, res) {
+        Audit.pushConversationPost(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, req.body)
+        .then(msg => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, msg);
+        })
+        .catch(err => Response.Internal(res, err));
+    });
+
+    app.put("/api/audits/:auditId/conversation/:postId", acl.hasPermission('audits:review'), function(req, res) {   
+        Audit.updateConversationPost(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, req.params.postId, req.body)
+        .then(msg => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, msg);
+        })
+        .catch(err => Response.Internal(res, err));
+    });
+
+    app.delete("/api/audits/:auditId/conversation/:postId", acl.hasPermission('audits:review'), function(req, res) {   
+        Audit.deleteConversationPost(acl.isAllowed(req.decodedToken.role, 'audits:review-all'), req.params.auditId, req.decodedToken.id, req.params.postId)
+        .then(msg => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, msg);
+        })
+        .catch(err => Response.Internal(res, err));
+    });
+    
+    // Sets the audit state to EDIT or REVIEW
+    app.put("/api/audits/:auditId/updateReadyForReview", acl.hasPermission('audits:update'), async function(req, res) {
+        const settings = await Settings.getAll();
+
+        if (!settings.reviews.enabled) {
+            Response.Unauthorized(res, "Audit reviews are not enabled.");
+            return;
+        }
+
+        var update = {};
+        var audit = await Audit.getAudit(acl.isAllowed(req.decodedToken.role, 'audits:read-all'), req.params.auditId, req.decodedToken.id);
+
+        if (audit.state !== "EDIT" && audit.state !== "REVIEW") {
+            Response.Unauthorized(res, "The audit is not in the proper state for this action.");
+            return;
+        }
+
+        if (req.body.state != undefined && (req.body.state === "EDIT" || req.body.state === "REVIEW")) update.state = req.body.state;
+
+        if (update.state === "EDIT") {
+            var newApprovalsArray = [];
+            if (audit.approvals) {
+                audit.approvals.forEach((approval) => {
+                    if (approval._id.toString() !== req.decodedToken.id) {
+                        newApprovalsArray.push(approval);
+                    }
+                });
+                update.approvals = newApprovalsArray;
+            }
+        }
+
+        Audit.updateGeneral(acl.isAllowed(req.decodedToken.role, 'audits:update-all'), req.params.auditId, req.decodedToken.id, update)
+        .then(msg => {
+            io.to(req.params.auditId).emit('updateAudit');
+            Response.Ok(res, msg)
+        })
+        .catch(err => Response.Internal(res, err))
     });
 }

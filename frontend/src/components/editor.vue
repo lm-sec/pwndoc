@@ -1,5 +1,5 @@
 <template>
-<q-card flat bordered class="editor full-width" :class="affixRelativeElement">
+<q-card v-if="!readOnly" flat bordered class="editor full-width" :class="affixRelativeElement">
     <affix :relative-element-selector="'.'+affixRelativeElement" :enabled="!noAffix">
         <editor-menu-bar :editor="editor" v-slot="{ commands, isActive }">
             <q-toolbar class="editor-toolbar">
@@ -162,6 +162,9 @@
         <div class="ProseMirror" v-html="diffContent"></div>
     </div>
 </q-card>
+<div v-else>
+    <editor-content v-if="typeof diff === 'undefined' || !toggleDiff" class="editor__content q-pa-sm" :editor="editor"/>
+</div>
 </template>
 
 <script>
@@ -217,6 +220,10 @@ export default {
         noSync: {
             type: Boolean,
             default: false
+        },
+        readOnly: {
+            type: Boolean,
+            default: false
         }
     },
     components: {
@@ -226,7 +233,6 @@ export default {
     data() {
         return {
             editor: new Editor({
-                editable: this.editable,
                 extensions: [
                     new Blockquote(),
                     new BulletList(),
@@ -268,6 +274,12 @@ export default {
             }
             var content = this.htmlEncode(this.value)
             this.editor.setContent(content);
+       },
+
+       editable (value) {
+           this.editor.setOptions({
+            editable: this.editable,
+        });
        }
     },
 
@@ -279,7 +291,15 @@ export default {
         var content = this.htmlEncode(this.value);
         this.editor.setContent(content);
         this.editor.setOptions({
-            editable: this.editable,
+            editable: !this.readOnly && this.editable,
+        });
+    },
+
+    updated() {
+        this.$nextTick(() => {
+            this.editor.setOptions({
+                editable: !this.readOnly && this.editable,
+            });
         });
     },
 

@@ -9,6 +9,7 @@ export default [
         {path: '', redirect: 'general'},
         {path: 'general', component: () => import('pages/audits/edit/general')},
         {path: 'network', component: () => import('pages/audits/edit/network')},
+        {path: 'conversation', component: () => import('pages/audits/edit/conversation')},
         {path: 'findings/add', component: () => import('pages/audits/edit/findings/add')},
         {path: 'findings/:findingId', component: () => import('pages/audits/edit/findings/edit')},
         {path: 'sections/:sectionId', component: () => import('pages/audits/edit/sections')}
@@ -21,8 +22,7 @@ export default [
       {path: 'clients', component: () => import('pages/data/clients')},
       {path: 'templates', component: () => import('pages/data/templates')},   
       {path: 'dump', component: () => import('pages/data/dump')},
-      {path: 'custom', component: () => import('pages/data/custom')},
-      {path: 'configs', component: () => import('pages/data/configs')}
+      {path: 'custom', component: () => import('pages/data/custom')}
     ]},
     {path: 'vulnerabilities', component: () => import('pages/vulnerabilities'), meta: {breadcrumb: 'Vulnerabilities'}},
     {path: 'profile', component: () => import('pages/profile')},

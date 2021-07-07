@@ -1,4 +1,5 @@
-var mongoose = require('mongoose')//.set('debug', true);
+var mongoose = require('mongoose');//.set('debug', true);
+const Settings = require('./settings');
 var Schema = mongoose.Schema;
 
 var Paragraph = {
@@ -49,6 +50,14 @@ var Host = {
     services:   [Service]
 }
 
+var Post = new Schema({
+    type:       {type: String, enum: ['message', 'review', 'approve']},
+    user:       {type: Schema.Types.ObjectId, ref: 'User'},
+    content:    Schema.Types.Mixed,
+    createdAt:  Schema.Types.Date,
+    updatedAt:  Schema.Types.Date
+}, {timestamps: true});
+
 var AuditSchema = new Schema({
     name:               {type: String, required: true},
     auditType:          String,
@@ -68,8 +77,9 @@ var AuditSchema = new Schema({
     creator:            {type: Schema.Types.ObjectId, ref: 'User'},
     sections:           [{field: String, name: String, text: String, customFields: [customField]}], // keep text for retrocompatibility
     customFields:       [customField],
-    isReadyForReview:   Boolean,
+    state:              { type: String, enum: ['EDIT', 'REVIEW', 'APPROVED'], default: 'EDIT'},
     approvals:          [{type: Schema.Types.ObjectId, ref: 'User'}],
+    conversation:       [Post],
 }, {timestamps: true});
 
 /*
@@ -82,12 +92,12 @@ AuditSchema.statics.getAudits = (isAdmin, userId, filters) => {
         var query = Audit.find(filters)
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}, {reviewers: userId}])
-        query.populate('creator', '-_id username')
-        query.populate('collaborators', '-_id username')
-        query.populate('reviewers', '-_id username')
-        query.populate('approvals', '-_id username')
-        query.populate('company', '-_id name')
-        query.select('id name language creator collaborators company createdAt isReadyForReview')
+        query.populate('creator', 'id username')
+        query.populate('collaborators', 'id username')
+        query.populate('reviewers', 'id username firstname lastname')
+        query.populate('approvals', 'id username firstname lastname')
+        query.populate('company', 'id name')
+        query.select('id name language creator collaborators company createdAt state')
         query.exec()
         .then((rows) => {
             resolve(rows)
@@ -255,7 +265,7 @@ AuditSchema.statics.getGeneral = (isAdmin, auditId, userId) => {
         query.populate('reviewers', 'username firstname lastname')
         query.populate('approvals', 'username firstname lastname')
         query.populate('company')
-        query.select('id name auditType location date date_start date_end client collaborators language scope.name template customFields, isReadyForReview')
+        query.select('id name auditType location date date_start date_end client collaborators language scope.name template customFields state')
         query.exec()
         .then((row) => {
             if (!row)
@@ -280,9 +290,14 @@ AuditSchema.statics.updateGeneral = (isAdmin, auditId, userId, update) => {
             var Company = mongoose.model("Company");
             update.company = await Company.create(update.company)
         }
-        var query = Audit.findByIdAndUpdate(auditId, update)
-        if (!isAdmin)
+        var query = Audit.findOneAndUpdate({ _id: auditId }, update)
+
+        if (!isAdmin) {
             query.or([{creator: userId}, {collaborators: userId}])
+        } else {
+            query.or([{ _id: auditId }, {creator: userId}, {collaborators: userId}])
+        }
+            
         query.exec()
         .then(row => {
             if (!row)
@@ -302,7 +317,8 @@ AuditSchema.statics.getNetwork = (isAdmin, auditId, userId) => {
         var query = Audit.findById(auditId)
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}, {reviewers: userId}])
-        query.select('scope')
+        query.select('id scope approvals state')
+        query.populate('approvals', 'username firstname lastname')
         query.exec()
         .then((row) => {
             if (!row)
@@ -319,7 +335,7 @@ AuditSchema.statics.getNetwork = (isAdmin, auditId, userId) => {
 // Update audit Network information
 AuditSchema.statics.updateNetwork = (isAdmin, auditId, userId, scope) => {
     return new Promise((resolve, reject) => { 
-        var query = Audit.findByIdAndUpdate(auditId, scope)
+        var query = Audit.findOneAndUpdate({ _id: auditId }, scope)
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}])
         query.exec()
@@ -512,20 +528,21 @@ AuditSchema.statics.createSection = (isAdmin, auditId, userId, section) => {
 // Get section of audit
 AuditSchema.statics.getSection = (isAdmin, auditId, userId, sectionId) => {
     return new Promise((resolve, reject) => { 
-        var query = Audit.findById(auditId)
+        var query = Audit.findOne({ 
+            _id: auditId,
+            "sections._id": sectionId
+        })
         if (!isAdmin)
             query.or([{creator: userId}, {collaborators: userId}, {reviewers: userId}])
-        query.select('sections')
+        query.select('id sections approvals state')
+        query.populate('approvals', 'username firstname lastname')
         query.exec()
         .then((row) => {
-            if (!row)
-                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'})
+            if (!row) throw({fn: 'NotFound', message: 'Audit not found, Section ID not found, or Insufficient Privileges'})
 
-            var section = row.sections.id(sectionId);
-            if (section === null) 
-                throw({fn: 'NotFound', message: 'Section id not found'});
-            else 
-                resolve(section);
+            row.sections = [row.sections.id(sectionId)];
+
+            resolve(row);
         })
         .catch((err) => {
             reject(err)
@@ -592,24 +609,192 @@ AuditSchema.statics.deleteSection = (isAdmin, auditId, userId, sectionId) => {
 }
 
 AuditSchema.statics.updateApprovals = (isAdmin, auditId, userId, update) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+        var settings = await Settings.getAll();
+
+        if (update.approvals.length >= settings.reviews.settings.minReviewers) {
+            update.state = "APPROVED";
+        } else {
+            update.state = "REVIEW";
+        }
+        
         var query = Audit.findByIdAndUpdate(auditId, update)
         query.nor([{creator: userId}, {collaborators: userId}]);
-        if (!isAdmin)
-            query.or([{reviewers: userId}]);
+
+        if (!isAdmin) query.or([{reviewers: userId}]);
+
+        query.exec()
+        .then(audit => {
+            // If not found, then either audit cannot be found or userId was not a reviewer.
+            if (!audit) throw(error);
+
+            const reviewerAlreadyApproved = audit.approvals.some(reviewerId => reviewerId.toString() === userId.toString());
+
+            // We pull the userId if already approved, else we push the userId.
+            Audit.findOneAndUpdate(find, {
+                [reviewerAlreadyApproved ? "$pull" : "$push"]: {
+                    "approvals": userId
+                }
+            }).exec()
+            .then(row => {
+                if(!row) throw(error);
+
+                resolve('Audit approval updated successfully')  
+            })
+            .catch(err => reject(err));
+        })
+        .catch(err => reject(err));
+    });
+}
+
+AuditSchema.statics.getConversation = (isAdmin, auditId, userId) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findById(auditId).populate({
+            path: 'conversation.user', 
+            select: 'username firstname lastname'
+        });
         
         query.exec()
         .then(row => {
-            if (!row)
-                throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
+            if (!row) throw({fn: 'NotFound', message: 'Audit not found or Insufficient Privileges'});
+            if(!row.conversation) resolve([]);
+
+            resolve(row.conversation);
+        })
+        .catch(err => reject(err))
+    });
+}
+
+AuditSchema.statics.pushConversationPost = (isAdmin, auditId, userId, post) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findByIdAndUpdate(auditId, 
+            {
+                "$push": {
+                    "conversation": { 
+                        ...post,
+                        user: userId
+                    }
+                }
+            },
+            { new: true }
+        ).populate({
+            path: 'conversation.user', 
+            select: 'username firstname lastname'
+        });
+        
+        query.exec()
+        .then(row => {
+            if (!row) throw({fn: 'NotFound', message: 'Audit conversation not found or Insufficient Privileges'});
             
-            resolve("Audit approvals updated successfully");
+            resolve(row.conversation[row.conversation.length - 1]);
         })
         .catch((err) => {
             reject(err)
         })
     });
 }
+
+AuditSchema.statics.updateConversationPost = (isAdmin, auditId, userId, postId, newPost) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findOneAndUpdate(
+            { 
+                _id: auditId,
+                "conversation._id": postId,
+                "conversation.user": userId
+            }, 
+            {
+                "$set": {
+                    "conversation.$[element].content": newPost.content
+                }
+            },
+            {
+                arrayFilters: [{ 
+                    "element._id": postId
+                }],
+                new: true 
+            }
+        ).populate({
+            path: 'conversation.user', 
+            select: 'username firstname lastname'
+        });
+        
+        query.exec()
+        .then(row => {
+            if (!row) throw({fn: 'NotFound', message: 'Audit post not found or Insufficient Privileges'});
+
+            const post = row.conversation.find(post => post.id.toString() === postId.toString());
+
+            resolve(post);
+        })
+        .catch(err => reject(err))
+    });
+}
+
+AuditSchema.statics.deleteConversationPost = (isAdmin, auditId, userId, postId) => {
+    return new Promise((resolve, reject) => {
+        var query = Audit.findOneAndUpdate(
+            { 
+                _id: auditId, 
+            },
+            {
+                "$pull": {
+                    "conversation": {
+                        "_id": postId,
+                        "user": userId
+                    }
+                }
+            }
+        );
+        
+        query.exec()
+        .then(row => {
+            if (!row) throw({fn: 'NotFound', message: 'Audit post not found or Insufficient Privileges'});
+
+            resolve("Deleted post successfully.");
+        })
+        .catch(err => reject(err))
+    });
+}
+
+/*
+*** Hooks ***
+*/
+
+async function sendPostIfReviewChanged(query, update, audit) {
+    if(!query || !update || !audit || !query['$or']) return;
+
+    const userId = query['$or'].find(obj => obj['creator'])?.creator;
+
+    if(!userId || audit.isReadyForReview === update.isReadyForReview) return;
+
+    AuditSchema.statics.pushConversationPost(true, audit._id, userId, {
+        type: 'review',
+        content: update.isReadyForReview
+    });
+}
+
+async function sendPostIfApprovalChanged(query, update, audit) {
+    if(!update['$push'] && !update['$pull']) return;
+
+    const isApproving = update['$push'] != undefined;
+    const userId = (isApproving ? update['$push'] : update['$pull']).approvals;
+
+    if(!userId) return;
+
+    AuditSchema.statics.pushConversationPost(true, audit._id, userId, {
+        type: 'approve',
+        content: isApproving
+    });
+}
+
+AuditSchema.pre('findOneAndUpdate', async function() {
+    const query = this.getFilter();
+    const update = this.getUpdate();
+    const audit = await this.model.findOne(query);
+
+    await sendPostIfReviewChanged(query, update, audit);
+    await sendPostIfApprovalChanged(query, update, audit);
+});
 
 /*
 *** Methods ***

@@ -1,0 +1,100 @@
+<div>
+    <breadcrumb buttons :title="`${$parent.audit.name} (${$parent.audit.auditType || 'Audit Type not set'})`" id="edit-breadcrumb-affix" :state="parentState" :approvals="parentApprovals">
+    </breadcrumb>
+
+    <q-dialog v-model="deleteDialog" persistent>
+        <q-card>
+            <q-card-section>
+                <div class="text-h6">Delete Post</div>
+            </q-card-section>
+
+            <q-separator />
+
+            <q-card-section>
+                You are about to delete a post. Are you sure you want to delete? This action is irreversible.
+            </q-card-section>
+
+            <q-separator />
+
+            <q-card-actions align="right">
+                <q-btn flat label="No" color="primary" v-close-popup />
+                <q-btn @click="deleteAuditConversationPost()" label="Yes" color="secondary" v-close-popup />
+            </q-card-actions>
+        </q-card>
+    </q-dialog>
+
+    <div class="row q-col-gutter-md q-pa-md">
+        <div class="col-md-8 offset-md-2 col-12">
+            <div v-for="post of this.conversation" :key="post._id">
+                <q-card>
+                    <q-item>
+                        <q-item-section v-if="post.type == 'message'" avatar>
+                            <q-icon color="secondary" name="fa fa-user"></q-icon>
+                        </q-item-section>
+                        <q-item-section v-else-if="post.type == 'review'" avatar>
+                            <q-icon color="primary" :name="(post.content) ? 'fa fa-clipboard' : 'fa fa-edit'"></q-icon>
+                        </q-item-section>
+                        <q-item-section v-else-if="post.type == 'approve'" avatar>
+                            <q-icon v-if="post.content" color="positive" name="fa fa-check"></q-icon>
+                            <q-icon v-else color="negative" name="fa fa-ban"></q-icon>
+                        </q-item-section>
+    
+                        <q-item-section>
+                            <q-item-label>{{ post.user.fullName }}</q-item-label>
+                            <q-item-label caption>{{ post.date + ((post.edited) ? " - (edited)" : "") }}</q-item-label>
+                        </q-item-section>
+
+                        <q-item-section v-if="post.user.me && post.type == 'message'">
+                            <div class="row justify-end">
+                                <q-btn-dropdown flat round>
+                                    <q-item v-if="!post.edit" clickable v-close-popup @click="editAuditConversationPost(post)">
+                                        <q-item-section side><q-icon size="xs" name="fa fa-edit" /></q-item-section>
+                                        <q-item-section>Edit</q-item-section>
+                                    </q-item>
+                                    <q-item v-else clickable v-close-popup @click="editAuditConversationPost(post)">
+                                        <q-item-section side><q-icon size="xs" name="fa fa-save" /></q-item-section>
+                                        <q-item-section>Save</q-item-section>
+                                    </q-item>
+                                    <q-separator />
+                                    <q-item clickable v-close-popup @click="deleteAuditConversationPostDialog(post)">
+                                        <q-item-section side><q-icon size="xs" name="fa fa-trash" /></q-item-section>
+                                        <q-item-section>Delete</q-item-section>
+                                    </q-item>
+                                </q-btn-dropdown>
+                            </div>
+                        </q-item-section>
+                    </q-item>
+
+                    <q-separator/>
+
+                    <q-card-section v-if="post.type == 'message'">
+                        <basic-editor ref="basiceditor_post" noSync noAffix :readOnly="!post.edit" v-model="post.content"/>
+                    </q-card-section>
+                    <q-card-section v-else-if="post.type == 'review'">
+                        <span v-if="post.content"><u>{{ post.user.fullName }}</u> set audit ready for review.</span>
+                        <span v-else><u>{{ post.user.fullName }}</u> set audit to edit.</span>
+                    </q-card-section>
+                    <q-card-section v-else-if="post.type == 'approve'">
+                        <span v-if="post.content"><u>{{ post.user.fullName }}</u> approved audit.</span>
+                        <span v-else><u>{{ post.user.fullName }}</u> removed approval from audit.</span>
+                    </q-card-section>
+                </q-card>
+                <br/>
+            </div>
+            
+            <q-card>
+                <q-card-section>
+                    <basic-editor ref="basiceditor_content" noSync noAffix v-model="post.content"/>
+                </q-card-section>
+
+                <q-separator/>
+
+                <q-card-section>
+                    <div class="row justify-end">
+                        <q-btn color="secondary" label="Post" @click="sendAuditConversationPost()"/>
+                    </div>
+                </q-card-section>
+            </q-card>
+        </div>
+    </div>
+</div>
